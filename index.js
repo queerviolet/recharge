@@ -4,9 +4,9 @@ require('babel-register')
 
 const recharge = ({
   fs=require('fs'),
-  Rx=require('rx'),
+  Rx=require('rxjs'),
   chokidar=require('chokidar'),
-  join=require('path').join
+  join=require('path').join,
 }={}) => {
   const readdir = dir =>
     new Promise(
@@ -48,6 +48,7 @@ const recharge = ({
       }),
       {}
     )
+    
     const isJsx = ({path}) => path.endsWith('.jsx')
     const {add, change, unlink} = current
     // current.add.filter(isJsx)    
@@ -57,20 +58,30 @@ const recharge = ({
     //   .subscribe(console.log)
 
 
-    add.merge(change).merge(unlink)
-      .filter(isJsx)
-      .subscribe(console.log)
+    // add.merge(change).merge(unlink)
+    //   .filter(isJsx)
+    //   .subscribe(console.log)
 
     const watchRx = require('watch-rx')
 
     const {renderToString: render} = require('react-dom/server')
     const mkdirp = require('mkdirp')
     const Path = require('path')
-    add.filter(isJsx)
-      .map(event => 
+
+    const bustCache = () => {
+      for (let key in require.cache) {
+        delete require.cache[key]
+      }
+    }
+
+    const tee = x => (console.log(x), x)
+
+    add.merge(change).filter(isJsx)    
+      .map(event => (bustCache(),
         Object.assign({
           module: require('./' + event.path).default,
-        }, event))
+        }, event)))
+      .map(tee)        
       .subscribe(
         ({module, path}) => {
           const outFile = './ZAP/' + path.slice(0, path.length - 3) + 'html'
